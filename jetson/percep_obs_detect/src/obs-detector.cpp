@@ -224,20 +224,3 @@ void ObsDetector::startRecording(std::string directory) {
      delete voxelGrid;
      delete ece;
  }
-
-
-
-int main() {
-    ObsDetector obs(DataSource::FILESYSTEM, OperationMode::DEBUG, ViewerType::GL);
-    //obs.startRecording("test-record3");
-
-    cout << "Here we go\n";
-    std::thread viewerTick( [&]{while(true) { obs.update();} });
-
-    while(true) {
-        obs.spinViewer();
-    }
-    
-
-    return 0;
-}

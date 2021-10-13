@@ -1,30 +1,32 @@
+#include "obs-detector.h"
 #include "perception.hpp"
-#include "rover_msgs/Target.hpp"
-#include "rover_msgs/TargetList.hpp"
-#include <unistd.h>
-#include <deque>
+#include "rapidjson/document.h"
+#include "camera.hpp"
 
-using namespace cv;
 using namespace std;
-using namespace std::chrono_literals;
- 
-int main() {
-  
- /* --- Reading in Config File --- */
-  rapidjson::Document mRoverConfig;
-  ifstream configFile;
-  string configPath = getenv("MROVER_CONFIG");
-  configPath += "/config_percep/config.json";
-  configFile.open( configPath );
-  string config = "";
-  string setting;
-  while( configFile >> setting ) {
-    config += setting;
-  }
-  configFile.close();
-  mRoverConfig.Parse( config.c_str() );
 
-  /* --- Camera Initializations --- */
+int main() {
+    ObsDetector obs(DataSource::FILESYSTEM, OperationMode::DEBUG, ViewerType::GL);
+    //obs.startRecording("test-record3");
+
+    cout << "Here we go\n";
+    thread viewerTick( [&]{while(true) { obs.update();} });
+
+     /* --- Reading in Config File --- */
+    rapidjson::Document mRoverConfig;
+    ifstream configFile;
+    string configPath = getenv("MROVER_CONFIG");
+    configPath += "/config_percep/config.json";
+    configFile.open( configPath );
+    string config = "";
+    string setting;
+    while( configFile >> setting ) {
+        config += setting;
+    }
+    configFile.close();
+    mRoverConfig.Parse( config.c_str() );
+
+    /* --- Camera Initializations --- */
     Camera cam(mRoverConfig);
     int iterations = 0;
     cam.grab();
@@ -84,8 +86,8 @@ int main() {
     cam.record_ar_init();
     #endif
 
-  /* --- Main Processing Stuff --- */
-  while (true) {
+    /* --- Main Processing Stuff --- */
+    while (true) {
         //Check to see if we were able to grab the frame
         if (!cam.grab()) break;
 
@@ -185,8 +187,7 @@ int main() {
         #endif
         
         ++iterations;
-  }
-
+    }
 
     /* --- Wrap Things Up --- */
     #if AR_RECORD
