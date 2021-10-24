@@ -1,4 +1,6 @@
 #include "obs-detector.h"
+#include "rover_msgs/Target.hpp"
+#include "rover_msgs/TargetList.hpp"
 #include <chrono>
 
 using namespace std;
@@ -6,6 +8,7 @@ using namespace std::chrono;
 #include <glm/vec4.hpp> // glm::vec4
 #include <glm/glm.hpp>
 #include <vector>
+#include <artag_detector.hpp>
 
 ObsDetector::ObsDetector(DataSource source, OperationMode mode, ViewerType viewerType) : source(source), mode(mode), viewerType(viewerType), record(false)
 {
@@ -69,6 +72,37 @@ void ObsDetector::update() {
         zed.grab();
         zed.retrieveMeasure(frame, sl::MEASURE::XYZRGBA, sl::MEM::GPU, cloud_res); 
         getRawCloud(pc, frame);
+
+        /* --- Reading in Config File --- */
+        rapidjson::Document mRoverConfig;
+        ifstream configFile;
+        string configPath = getenv("MROVER_CONFIG");
+        configPath += "/config_percep/config.json";
+        configFile.open( configPath );
+        string config = "";
+        string setting;
+        while( configFile >> setting ) {
+            config += setting;
+        }
+        configFile.close();
+        mRoverConfig.Parse( config.c_str() );
+
+        rover_msgs::TargetList arTagsMessage;
+        rover_msgs::Target* arTags = arTagsMessage.targetList;
+
+        /* --- Camera Initializations --- */
+        Camera cam(mRoverConfig);
+
+        Mat rgb;
+        Mat src = cam.image();
+        Mat depth_img = cam.depth();
+
+        /* --- AR Tag Initializations --- */
+        TagDetector detector(mRoverConfig);
+        pair<Tag, Tag> tagPair;
+
+        tagPair = detector.findARTags(src, depth_img, rgb);
+        detector.updateDetectedTagInfo(arTags, tagPair, depth_img, src);
         
     } else if(source == DataSource::FILESYSTEM) {
 
@@ -78,6 +112,7 @@ void ObsDetector::update() {
 
     if(source == DataSource::FILESYSTEM) deleteCloud(pc);
 } 
+
 ///home/ashwin/Documents/mrover-workspace/jetson/percep_obs_detect/data
 // Call this directly with ZED GPU Memory
 void ObsDetector::update(GPU_Cloud pc) {
@@ -95,17 +130,13 @@ void ObsDetector::update(GPU_Cloud pc) {
     #if VOXEL
         bins = voxelGrid->run(pc);
     #endif
-    obstacles = ece->extractClusters(pc, bins); 
-    
-    
-    ///*/
-    // Rendering
+    obstacles = ece->extractClusters(pc, bins);
+    ng
     if(mode != OperationMode::SILENT) {
         //viewer.addPointCloud();
         //viewer.remove
         //viewer.updatePointCloud(pc);
     }
-
 
     // Recording
     if(record) record = true;
@@ -143,7 +174,6 @@ void ObsDetector::spinViewer() {
     
     viewer.update();
     viewer.clearEphemerals();
-    
 }
 
  ObsDetector::~ObsDetector() {
@@ -165,6 +195,5 @@ int main() {
        obs.spinViewer();
     }
     
-
     return 0;
 }
