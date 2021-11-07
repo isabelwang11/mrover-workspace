@@ -87,8 +87,11 @@ void ObsDetector::update() {
         configFile.close();
         mRoverConfig.Parse( config.c_str() );
 
+        lcm::LCM lcm_;
         rover_msgs::TargetList arTagsMessage;
         rover_msgs::Target* arTags = arTagsMessage.targetList;
+        arTags[0].distance = mRoverConfig["ar_tag"]["default_tag_val"].GetInt();
+        arTags[1].distance = mRoverConfig["ar_tag"]["default_tag_val"].GetInt();
 
         /* --- Camera Initializations --- */
         Camera cam(mRoverConfig);
@@ -103,6 +106,9 @@ void ObsDetector::update() {
 
         tagPair = detector.findARTags(src, depth_img, rgb);
         detector.updateDetectedTagInfo(arTags, tagPair, depth_img, src);
+
+        /* --- Publish LCMs --- */
+        lcm_.publish("/target_list", &arTagsMessage);
         
     } else if(source == DataSource::FILESYSTEM) {
 
